@@ -1,14 +1,111 @@
 {
   "name": "mct-branding",
   "version": "1.0.0",
-  "description": "MCT module for BRANDING",
-  "main": "dist/index.js",
+  "description": "MCT Branding Module for dynamic brand management",
+  "main": "src/index.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
-    "test": "jest",
-    "setup": "npm install && npx drizzle-kit push:pg"
+    "start": "node dist/index.js",
+    "dev": "nodemon src/index.ts",
+    "test": "jest"
   },
-  "keywords": ["mct", "api", "microservice"],
-  "license": "MIT"
+  "keywords": ["mct", "branding", "typescript"],
+  "author": "Your Name",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "mongoose": "^6.0.12",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.13",
+    "@types/node": "^16.11.7",
+    "typescript": "^4.4.4",
+    "ts-node": "^10.4.0",
+    "nodemon": "^2.0.15",
+    "jest": "^27.3.1"
+  }
 }
+### `src/index.ts`
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import routes from './api/routes';
+dotenv.config();
+const app = express();
+const PORT = process.env.PORT || 3000;
+mongoose.connect(process.env.MONGO_URI!, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => console.log('MongoDB connected'))
+  .catch(err => console.log(err));
+app.use(cors());
+app.use(express.json());
+app.use('/api', routes);
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+});
+### `src/api/routes.ts`
+import { Router } from 'express';
+import { getBrands, createBrand, updateBrand, deleteBrand } from '../services/brandService';
+const router = Router();
+router.get('/brands', getBrands);
+router.post('/brands', createBrand);
+router.put('/brands/:id', updateBrand);
+router.delete('/brands/:id', deleteBrand);
+export default router;
+### `src/db/schema.ts`
+import mongoose from 'mongoose';
+const brandSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    logoUrl: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+export const Brand = mongoose.model('Brand', brandSchema);
+### `src/mct/server.ts`
+import { startMCTServer } from './tools';
+startMCTServer();
+### `src/mct/tools.ts`
+export function startMCTServer() {
+    console.log('MCT Server started');
+    // Implement MCT Server initialization and tool registration
+}
+### `src/services/brandService.ts`
+import { Request, Response } from 'express';
+import { Brand } from '../db/schema';
+export const getBrands = async (req: Request, res: Response) => {
+    try {
+        const brands = await Brand.find();
+        res.json(brands);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+export const createBrand = async (req: Request, res: Response) => {
+    try {
+        const newBrand = new Brand(req.body);
+        const savedBrand = await newBrand.save();
+        res.status(201).json(savedBrand);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+export const updateBrand = async (req: Request, res: Response) => {
+    try {
+        const updatedBrand = await Brand.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json(updatedBrand);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+export const deleteBrand = async (req: Request, res: Response) => {
+    try {
+        await Brand.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Brand deleted' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
